@@ -1,6 +1,6 @@
 "use client";
 
-import { GoogleMap, LoadScript, Marker, DirectionsRenderer } from "@react-google-maps/api";
+import { GoogleMap, Marker, DirectionsRenderer } from "@react-google-maps/api";
 import { useEffect, useRef, useState } from "react";
 
 const containerStyle = { width: "100%", height: "500px" };
