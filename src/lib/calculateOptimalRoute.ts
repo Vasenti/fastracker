@@ -97,7 +97,7 @@ export async function geocodeAddress(address: string): Promise<{ lat: number; lo
         // Espera 1 segundo antes de hacer la solicitud
         await delay(1000);
         const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
+            `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ar&q=${encodeURIComponent(address)}`
         );
         const data = await response.json();
         if (data && data.length > 0) {
