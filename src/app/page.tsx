@@ -111,7 +111,7 @@ export default function HomePage() {
                         <tr>
                             <th>ORDER</th>
                             <th>DIRECCIÓN</th>
-                            <th>ZONA</th>
+                            <th>Localidad</th>
                             <th>COORDENADAS</th>
                         </tr>
                         </thead>
