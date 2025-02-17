@@ -1,30 +1,3 @@
-// src/lib/calculateOptimalRoute.ts
-
-export interface AddressItem {
-    direccion: string;
-    zona: string;
-}
-
-
-export interface AddressItem {
-    direccion: string;
-    zona: string;
-}
-
-export interface ExcelRow {
-    id: number;
-    data: Record<string, any>;
-    direccion: string;
-    zona: string;
-}
-
-export interface AddressWithZone {
-    direccion: string;
-    localidad: string;
-}
-
-// src/lib/googleRoute.ts
-
 export interface ExcelRowData {
     data: Record<string, any>; // La fila completa original del Excel
     direccion: string;

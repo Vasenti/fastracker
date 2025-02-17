@@ -29,7 +29,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onResult }) => {
         const result: ExcelRowData[] = jsonData.map(row => ({
             data: row, // guarda toda la fila original
             direccion: row['DIRECCION'] || row['Direccion'] || '',
-            zona: row['ZONA'] || row['Zona'] || row['LOCALIDAD'] || '',
+            zona: row['Localidad'] || row['LOCALIDAD'] || '',
         })).filter(item => item.direccion !== '');
 
         onResult(result);
