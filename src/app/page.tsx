@@ -2,46 +2,51 @@
 'use client';
 
 import React, { useState } from 'react';
-import AddressInput from '@/components/AddressInput';
-import AddressList from '@/components/AddressList';
 import ExcelUpload from '@/components/ExcelUpload';
-import { calculateOptimalRoute } from '@/lib/calculateOptimalRoute'; // Para ingreso manual
-import { ExcelRow } from '@/lib/calculateOptimalRoute';
 import * as XLSX from 'xlsx';
+import {calculateOptimalRouteLarge, ExcelRowData, OptimizedExcelRow} from "@/lib/calculateOptimalRoute";
 
 export default function HomePage() {
-    // Ingreso manual (array de strings)
-    const [addresses, setAddresses] = useState<string[]>([]);
-    const [optimizedRoute, setOptimizedRoute] = useState<string[] | null>(null);
-
-    // Resultados para Excel (array de ExcelRow)
-    const [excelRoute, setExcelRoute] = useState<ExcelRow[] | null>(null);
-
+    const [optimizedRoute, setOptimizedRoute] = useState<OptimizedExcelRow[] | null>(null);
     const [travelMode, setTravelMode] = useState<'driving' | 'walking'>('driving');
     const [loading, setLoading] = useState<boolean>(false);
+    const [startingAddress, setStartingAddress] = useState<string>('');
+    const [startingZone, setStartingZone] = useState<string>('');
 
-    const addAddress = (address: string) => {
-        setAddresses((prev) => [...prev, address]);
-        setOptimizedRoute(null);
-    };
-
-    const handleCalculateRoute = async () => {
-        if (addresses.length < 2) return;
+    // Al recibir las filas del Excel, se agrega la fila de partida (con dirección y zona de partida) al inicio.
+    const handleExcelResult = async (rows: ExcelRowData[]) => {
+        if (!startingAddress.trim()) {
+            alert("Por favor, ingrese la dirección de partida.");
+            return;
+        }
+        if (!startingZone.trim()) {
+            alert("Por favor, ingrese la zona de partida.");
+            return;
+        }
         setLoading(true);
-        const result = await calculateOptimalRoute(addresses, travelMode);
-        setOptimizedRoute(result);
+        const startingRow: ExcelRowData = {
+            data: { ...{ Direccion: startingAddress, Zona: startingZone } }, // Guarda toda la info original para el punto de partida
+            direccion: startingAddress,
+            zona: startingZone,
+        };
+        const combinedRows = [startingRow, ...rows];
+        const optimized = await calculateOptimalRouteLarge(combinedRows, travelMode);
+        setOptimizedRoute(optimized);
         setLoading(false);
     };
 
-    // Función para descargar el Excel ordenado
     const handleDownloadExcel = () => {
-        if (!excelRoute) return;
-        // Extraemos los datos completos originales de cada fila
-        const exportData = excelRoute.map((row) => row.data);
-        const ws = XLSX.utils.json_to_sheet(exportData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Ordenado');
-        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        if (!optimizedRoute) return;
+        // Excluir la primera fila (punto de partida) del Excel exportado.
+        const exportData = optimizedRoute.slice(1).map(row => ({
+            ...row.data, // Toda la información original de la fila
+            ORDER: row.order,
+            COORDENADAS: row.coordenadas,
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Ordenado');
+        const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
         const blob = new Blob([wbout], { type: 'application/octet-stream' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -58,6 +63,30 @@ export default function HomePage() {
             <h1>Optimización de Rutas</h1>
 
             <div style={{ marginBottom: '1rem' }}>
+                <label htmlFor="startingAddress">Dirección de Partida: </label>
+                <input
+                    id="startingAddress"
+                    type="text"
+                    value={startingAddress}
+                    onChange={(e) => setStartingAddress(e.target.value)}
+                    placeholder="Ingrese la dirección de partida"
+                    style={{ width: '300px', padding: '0.5rem', marginRight: '1rem' }}
+                />
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+                <label htmlFor="startingZone">Zona de Partida: </label>
+                <input
+                    id="startingZone"
+                    type="text"
+                    value={startingZone}
+                    onChange={(e) => setStartingZone(e.target.value)}
+                    placeholder="Ingrese la zona de partida"
+                    style={{ width: '300px', padding: '0.5rem', marginRight: '1rem' }}
+                />
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
                 <label htmlFor="travelMode">Modo de Viaje: </label>
                 <select
                     id="travelMode"
@@ -69,44 +98,30 @@ export default function HomePage() {
                 </select>
             </div>
 
-            {/* Sección de ingreso manual */}
-            <h2>Ingreso Manual</h2>
-            <AddressInput onAddAddress={addAddress} />
-            <AddressList addresses={addresses} title="Direcciones Agregadas (Manual)" />
-            <button onClick={handleCalculateRoute} disabled={addresses.length < 2 || loading}>
-                {loading ? 'Calculando...' : 'Calcular Ruta Óptima'}
-            </button>
+            {/* Componente para cargar el Excel */}
+            <ExcelUpload onResult={handleExcelResult} />
+
+            {loading && <p>Procesando ruta...</p>}
+
             {optimizedRoute && (
                 <div style={{ marginTop: '2rem' }}>
-                    <h2>Ruta Óptima Manual ({travelMode === 'driving' ? 'Carretera' : 'Caminando'})</h2>
-                    <AddressList addresses={optimizedRoute} title="Ruta Optimizada" />
-                </div>
-            )}
-
-            <hr />
-
-            {/* Sección de carga desde Excel */}
-            <h2>Carga desde Excel</h2>
-            <ExcelUpload travelMode={travelMode} onResult={setExcelRoute} />
-            {excelRoute && (
-                <div style={{ marginTop: '2rem' }}>
-                    <h2>
-                        Ruta Óptima desde Excel ({travelMode === 'driving' ? 'Carretera' : 'Caminando'})
-                    </h2>
+                    <h2>Ruta Óptima</h2>
                     <table border={1} cellPadding={5} style={{ borderCollapse: 'collapse' }}>
                         <thead>
                         <tr>
-                            <th>ORDEN</th>
+                            <th>ORDER</th>
                             <th>DIRECCIÓN</th>
                             <th>ZONA</th>
+                            <th>COORDENADAS</th>
                         </tr>
                         </thead>
                         <tbody>
-                        {excelRoute.map((row, index) => (
-                            <tr key={row.id}>
-                                <td>{index + 1}</td>
+                        {optimizedRoute.map((row, index) => (
+                            <tr key={index}>
+                                <td>{row.order}</td>
                                 <td>{row.direccion}</td>
                                 <td>{row.zona}</td>
+                                <td>{row.coordenadas}</td>
                             </tr>
                         ))}
                         </tbody>
@@ -119,3 +134,4 @@ export default function HomePage() {
         </div>
     );
 }
+
