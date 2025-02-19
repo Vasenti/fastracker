@@ -65,7 +65,7 @@ const useRouteCalculation = () => {
             if (data.routes && data.routes.length > 0) {
                 setRoutePath(data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]));
                 setDistance(data.routes[0].distance / 1000);
-                setDuration(data.routes[0].duration / 60);
+                setDuration(data.routes[0].duration);
             }
         } catch (error) {
             console.error("Error al obtener la ruta:", error);

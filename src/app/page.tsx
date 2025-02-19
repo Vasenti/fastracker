@@ -1,12 +1,14 @@
 "use client";
 
-import React from "react";
+import React, {useEffect, useState} from "react";
 
 import Metrics from "@/components/Metrics";
 import Map from "@/components/Map";
 import useRouteCalculation from "@/hooks/useRouteCalculation";
 import SideBar from "@/components/SideBar";
 import StopListSideBar from "@/components/StopListSideBar";
+import Loader from "@/components/Loader";
+import {ExcelRowData} from "@/lib/calculateOptimalRoute";
 
 
 
@@ -36,6 +38,15 @@ const HomePage = () => {
         setCenter,
         deleteMarker
     } = useRouteCalculation();
+
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadingText, setLoadingText] = useState("Cargando mapa");
+
+    useEffect(() => {
+        setTimeout(() => setIsLoading(false), 2500);
+    }, []);
+
+    if (isLoading) return <Loader text={loadingText}/>;
 
     return (
         <div style={{
@@ -85,7 +96,12 @@ const HomePage = () => {
                 setStartingZone={setStartingZone}
                 travelMode={travelMode}
                 setTravelMode={setTravelMode}
-                handleExcelResult={handleExcelResult}
+                handleExcelResult={async (rows: ExcelRowData[]) => {
+                    setLoadingText("Cargando ruta más óptima");
+                    setIsLoading(true);
+                    await handleExcelResult(rows);
+                    setIsLoading(false);
+                }}
                 loading={loading}
                 handleDownloadExcel={handleDownloadExcel}
                 optimizedRoutes={optimizedRoutes}

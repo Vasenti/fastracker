@@ -77,7 +77,7 @@ const Sidebar = (
             </label>
             <ExcelUpload onResult={handleExcelResult}/>
             {loading && <p style={{textAlign: "center"}}>Procesando ruta...</p>}
-            {optimizedRoutes && (
+            {optimizedRoutes && optimizedRoutes.length > 0 && (
                 <button onClick={handleDownloadExcel} style={{
                     marginTop: '1rem',
                     background: "#28a745",
