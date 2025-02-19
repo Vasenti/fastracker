@@ -1,87 +1,108 @@
-"use client";
+import React, {useEffect} from "react";
+import {MapContainer, TileLayer, Marker, Polyline, useMap} from "react-leaflet";
+import L, {type LatLngExpression} from "leaflet";
 
-import { GoogleMap, Marker, DirectionsRenderer } from "@react-google-maps/api";
-import { useEffect, useRef, useState } from "react";
+interface MapProps {
+    routePath: LatLngExpression[] | LatLngExpression[][];
+    editableMarkers: Array<any>;
+    updateMarkerPosition: (index: number, lat: number, lng: number, newDireccion: string) => void;
+    isEditing: boolean;
+    center: LatLngExpression;
+}
 
-const containerStyle = { width: "100%", height: "500px" };
-
-const MapComponent = ({ routeData }: { routeData: any }) => {
-    const mapRef = useRef<google.maps.Map | null>(null);
-    const [mapLoaded, setMapLoaded] = useState(false);
-    const [markers, setMarkers] = useState<{ lat: number; lng: number; label: string }[]>([]);
-    const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
-
+const RepositionZoomControl = () => {
+    const map = useMap();
     useEffect(() => {
-        if (!mapLoaded || !routeData || typeof google === "undefined" || !google.maps) {
-            console.warn("⚠️ Google Maps API aún no está disponible o el mapa no ha cargado.");
-            return;
-        }
-
-        if (mapRef.current) {
-            console.log("✅ Mapa cargado, aplicando fitBounds...");
-
-            const bounds = new google.maps.LatLngBounds();
-
-            if (routeData.route?.bounds) {
-                const { northeast, southwest } = routeData.route.bounds;
-
-                if (northeast && southwest) {
-                    bounds.extend(new google.maps.LatLng(northeast.lat, northeast.lng));
-                    bounds.extend(new google.maps.LatLng(southwest.lat, southwest.lng));
-                    console.log("✅ Bounds aplicados correctamente:", bounds);
-                } else {
-                    console.warn("⚠️ No se encontraron bounds válidos en la respuesta.");
-                }
-            } else {
-                console.warn("⚠️ La API de Google no devolvió bounds.");
-            }
-
-            setMarkers([
-                {
-                    lat: routeData.route.legs[0].start_location.lat,
-                    lng: routeData.route.legs[0].start_location.lng,
-                    label: "Inicio",
-                },
-                {
-                    lat: routeData.route.legs[routeData.route.legs.length - 1].end_location.lat,
-                    lng: routeData.route.legs[routeData.route.legs.length - 1].end_location.lng,
-                    label: "Destino",
-                },
-            ]);
-
-            if (!bounds.isEmpty()) {
-                mapRef.current.fitBounds(bounds);
-            }
-
-            setDirections({
-                request: {
-                    origin: routeData.route.legs[0].start_address,
-                    destination: routeData.route.legs[routeData.route.legs.length - 1].end_address,
-                    travelMode: google.maps.TravelMode.DRIVING,
-                },
-                routes: routeData.route.routes,
-            } as google.maps.DirectionsResult);
-        }
-    }, [routeData, mapLoaded]);
-
-    return (
-        <GoogleMap
-            mapContainerStyle={containerStyle}
-            zoom={12}
-            center={{ lat: -34.6037, lng: -58.3816 }}
-            onLoad={(map) => {
-                console.log("✅ `onLoad` ejecutado. Mapa listo.");
-                mapRef.current = map;
-                setMapLoaded(true);
-            }}
-        >
-            {directions && <DirectionsRenderer directions={directions} />}
-            {markers.map((marker, index) => (
-                <Marker key={index} position={{ lat: marker.lat, lng: marker.lng }} label={marker.label} />
-            ))}
-        </GoogleMap>
-    );
+        map.zoomControl.remove();
+        const zoomControl = L.control.zoom({ position: "bottomright" });
+        zoomControl.addTo(map);
+        return () => {
+            zoomControl.remove();
+        };
+    }, [map]);
+    return null;
 };
 
-export default MapComponent;
+const MapCenterUpdater = ({ center }: { center: LatLngExpression }) => {
+    const map = useMap();
 
+    useEffect(() => {
+        map.setView(center, map.getZoom(), { animate: true });
+    }, [center, map]);
+
+    return null;
+};
+
+const customMarker = new L.Icon({
+    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+});
+
+const createNumberedMarker = (number: number) => {
+    return new L.DivIcon({
+        className: "custom-marker",
+        html: `<div style="
+            background-color: #007bff;
+            color: white;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: bold;
+            border: 2px solid white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        ">${number}</div>`,
+        iconSize: [25, 25],
+        iconAnchor: [12, 12],
+        popupAnchor: [1, -12]
+    });
+};
+
+const Map = (
+    {
+        center,
+        routePath,
+        editableMarkers,
+        updateMarkerPosition,
+        isEditing
+    }: MapProps
+) => {
+    console.log(center)
+    return (
+        <MapContainer center={center} zoom={10} style={{width: "100vw", height: "100vh"}}>
+            <MapCenterUpdater center={center} />
+            <RepositionZoomControl/>
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
+            {routePath.length > 0 && <Polyline positions={routePath} color="blue" />}
+            {editableMarkers.map((row, index) => (
+                <Marker
+                    key={index}
+                    position={[
+                        parseFloat(row.coordenadas.split(", ")[0]),
+                        parseFloat(row.coordenadas.split(", ")[1])
+                    ]}
+                    icon={createNumberedMarker(index + 1)}
+                    draggable={false}
+                    eventHandlers={
+                        isEditing
+                        ? {
+                            dragend: (e) => {
+                                const { lat, lng } = e.target.getLatLng();
+                                const newDireccion = `Nueva dirección para (${lat.toFixed(6)}, ${lng.toFixed(6)})`; // Esto debería ser obtenido de una API
+                                updateMarkerPosition(index, lat, lng, newDireccion);
+                            },
+                        }
+                        : {}
+                    }
+                />
+            ))}
+        </MapContainer>
+    );
+};
+export default Map;

@@ -1,4 +1,3 @@
-// src/components/ExcelUpload.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -38,9 +37,9 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onResult }) => {
 
     return (
         <div style={{ marginBottom: '1rem' }}>
-            <label htmlFor="excelUpload">Cargar archivo Excel (.xlsx o .xls):</label>
+            <label style={{color: "black"}} htmlFor="excelUpload">Cargar archivo Excel (.xlsx o .xls):</label>
             <input type="file" id="excelUpload" accept=".xlsx, .xls" onChange={handleFileUpload} />
-            {loading && <p>Procesando archivo...</p>}
+            {loading && <p style={{color: "black"}}>Procesando archivo...</p>}
         </div>
     );
 };

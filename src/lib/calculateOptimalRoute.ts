@@ -2,6 +2,7 @@ export interface ExcelRowData {
     data: Record<string, any>; // La fila completa original del Excel
     direccion: string;
     zona: string;
+    coordenadas?: string;
 }
 
 export interface OptimizedExcelRow extends ExcelRowData {
@@ -27,11 +28,6 @@ export async function calculateOptimalRouteLarge(
             order: index + 1,
             coordenadas: '',
         })) as OptimizedExcelRow[];
-
-    const apiKey = 'AIzaSyDpz123VblpgRxXnmiOiHSx6cG-YxmtusY'; // Reemplaza con tu API key
-
-    // Función para geocodificar una dirección usando la API de Google,
-    // concatenando "direccion, zona" en la consulta.
     async function geocodeAddress(
         address: string,
         zone: string
@@ -39,9 +35,7 @@ export async function calculateOptimalRouteLarge(
         const query = zone ? `${address}, ${zone}` : address;
         try {
             const response = await fetch(
-                `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-                    query
-                )}&key=${apiKey}`
+                `/api/google/geocode?direction=${query}`
             );
             const data = await response.json();
             if (data.status === 'OK' && data.results.length > 0) {
@@ -74,7 +68,16 @@ export async function calculateOptimalRouteLarge(
 
     // Obtener las coordenadas para todas las filas.
     const coordsArray = await Promise.all(
-        rows.map(row => geocodeAddress(row.direccion, row.zona))
+        rows.map(async row => {
+            if (row.coordenadas && row.coordenadas.includes(',')) {
+                // ✅ Si ya tiene coordenadas, las usa directamente.
+                const [lat, lon] = row.coordenadas.split(',').map(coord => parseFloat(coord.trim()));
+                return { lat, lon };
+            } else {
+                // ❌ Si no tiene coordenadas, las obtiene de Google.
+                return await geocodeAddress(row.direccion, row.zona);
+            }
+        })
     );
 
     // Asociar cada fila con sus coordenadas (filtrando las que fallaron).
