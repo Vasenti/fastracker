@@ -1,6 +1,16 @@
-import React, {useEffect} from "react";
-import {MapContainer, TileLayer, Marker, Polyline, useMap} from "react-leaflet";
-import L, {type LatLngExpression} from "leaflet";
+"use client";
+
+import React, {useEffect, useState} from "react";
+import {type LatLngExpression} from "leaflet";
+import dynamic from "next/dynamic";
+import {useMap} from "react-leaflet";
+
+const MapContainer = dynamic(() => import("react-leaflet").then(mod => mod.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import("react-leaflet").then(mod => mod.TileLayer), { ssr: false });
+const Marker = dynamic(() => import("react-leaflet").then(mod => mod.Marker), { ssr: false });
+const Polyline = dynamic(() => import("react-leaflet").then(mod => mod.Polyline), { ssr: false });
+
+let L: any = null;
 
 interface MapProps {
     routePath: LatLngExpression[] | LatLngExpression[][];
@@ -13,6 +23,7 @@ interface MapProps {
 const RepositionZoomControl = () => {
     const map = useMap();
     useEffect(() => {
+        if (!map || !map.zoomControl) return;
         map.zoomControl.remove();
         const zoomControl = L.control.zoom({ position: "bottomright" });
         zoomControl.addTo(map);
@@ -27,7 +38,9 @@ const MapCenterUpdater = ({ center }: { center: LatLngExpression }) => {
     const map = useMap();
 
     useEffect(() => {
-        map.setView(center, map.getZoom(), { animate: true });
+        if (map && map.setView) { // ✅ Verifica si `map` está disponible antes de llamar a `setView`
+            map.setView(center, map.getZoom(), { animate: true });
+        }
     }, [center, map]);
 
     return null;
@@ -65,7 +78,19 @@ const Map = (
         isEditing
     }: MapProps
 ) => {
-    console.log(center)
+    const [leafletLoaded, setLeafletLoaded] = useState(false);
+
+    useEffect(() => {
+        (async () => {
+            if (typeof window !== "undefined") {
+                const leaflet = await import("leaflet");
+                L = leaflet;
+                setLeafletLoaded(true);
+            }
+        })();
+    }, []);
+
+    if (!leafletLoaded) return <p>Cargando mapa...</p>;
     return (
         <MapContainer center={center} zoom={10} style={{width: "100vw", height: "100vh"}}>
             <MapCenterUpdater center={center} />

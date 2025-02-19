@@ -108,6 +108,12 @@ const useRouteCalculation = () => {
         await recalculateRoute(updatedMarkers, true);
     };
 
+    const deleteMarker = async (index: number) => {
+        const copyRoutes = [...optimizedRoutes];
+        const updatedMarkers = copyRoutes.filter((_, i) => i !== index);
+        await recalculateRoute(updatedMarkers, true);
+    }
+
     return {
         optimizedRoutes,
         handleExcelResult: recalculateRoute,
@@ -131,7 +137,8 @@ const useRouteCalculation = () => {
         isEditing,
         setIsEditing,
         center,
-        setCenter
+        setCenter,
+        deleteMarker
     };
 };
 export default useRouteCalculation;

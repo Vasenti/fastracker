@@ -16,17 +16,14 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onResult }) => {
         if (!file) return;
 
         setLoading(true);
-        // Lee el archivo como ArrayBuffer
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        // Convertimos la hoja a JSON (cada fila es un objeto)
         const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
 
-        // Extraemos las columnas "DIRECCION" y "ZONA"
         const result: ExcelRowData[] = jsonData.map(row => ({
-            data: row, // guarda toda la fila original
+            data: row,
             direccion: row['DIRECCION'] || row['Direccion'] || '',
             zona: row['Localidad'] || row['LOCALIDAD'] || '',
         })).filter(item => item.direccion !== '');

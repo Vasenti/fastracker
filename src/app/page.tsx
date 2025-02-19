@@ -29,12 +29,12 @@ const HomePage = () => {
         distance,
         duration,
         editableMarkers,
-        setEditableMarkers,
         updateMarkerPosition,
         isEditing,
         setIsEditing,
         center,
-        setCenter
+        setCenter,
+        deleteMarker
     } = useRouteCalculation();
 
     return (
@@ -94,10 +94,7 @@ const HomePage = () => {
                 setCenter={setCenter}
                 setEditable={setIsEditing}
                 updateMarkerPosition={updateMarkerPosition}
-                removeMarker={(index) => {
-                    const updatedMarkers = editableMarkers.filter((_, i) => i !== index);
-                    setEditableMarkers(updatedMarkers);
-                }}
+                removeMarker={deleteMarker}
                 editableMarkers={editableMarkers}
                 setRoutePath={setRoutePath}
             />
