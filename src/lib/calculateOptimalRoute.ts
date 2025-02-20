@@ -1,3 +1,5 @@
+import {TravelMode} from "@/shared/enums";
+
 export interface ExcelRowData {
     data: Record<string, any>; // La fila completa original del Excel
     direccion: string;
@@ -20,7 +22,7 @@ export interface OptimizedExcelRow extends ExcelRowData {
  */
 export async function calculateOptimalRouteLarge(
     rows: ExcelRowData[],
-    travelMode: 'driving' | 'walking'
+    travelMode: TravelMode
 ): Promise<OptimizedExcelRow[]> {
     if (rows.length < 2)
         return rows.map((row, index) => ({
@@ -95,10 +97,28 @@ export async function calculateOptimalRouteLarge(
             coordenadas: '',
         })) as OptimizedExcelRow[];
 
-    // Función para calcular la distancia usando la fórmula haversine (en kilómetros).
+    async function getRouteDistance(
+        coord1: { lat: number; lon: number },
+        coord2: { lat: number; lon: number },
+        travelMode: TravelMode
+    ): Promise<number> {
+        const origin = `${coord1.lat},${coord1.lon}`;
+        const destination = `${coord2.lat},${coord2.lon}`;
+        const response = await fetch(
+            `/api/google/directions?origin=${origin}&destination=${destination}&mode=${travelMode}`
+        );
+        const data = await response.json();
+        if (data.status === 'OK' && data.routes.length > 0) {
+            // La API devuelve la distancia en metros, por lo que se convierte a kilómetros.
+            return data.routes[0].legs[0].distance.value / 1000;
+        }
+        // En caso de error, se puede devolver un valor muy alto para descartarlo en la optimización.
+        return Number.MAX_VALUE;
+    }
     function haversineDistance(
         coord1: { lat: number; lon: number },
-        coord2: { lat: number; lon: number }
+        coord2: { lat: number; lon: number },
+        travelMode: TravelMode
     ): number {
         const R = 6371; // Radio de la Tierra en km.
         const dLat = ((coord2.lat - coord1.lat) * Math.PI) / 180;
@@ -110,34 +130,73 @@ export async function calculateOptimalRouteLarge(
             Math.sin(dLon / 2) ** 2;
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         let distance = R * c;
-        if (travelMode === 'walking') {
+        if (travelMode === TravelMode.WALKING) {
             distance *= 1.2;
         }
         return distance;
     }
 
+    function totalDistance(
+        route: { coords: { lat: number; lon: number } }[],
+        travelMode: TravelMode
+    ): number {
+        let dist = 0;
+        for (let i = 0; i < route.length - 1; i++) {
+            dist += haversineDistance(route[i].coords, route[i + 1].coords, travelMode);
+        }
+        return dist;
+    }
+
+    function twoOpt(
+        route: { row: ExcelRowData; coords: { lat: number; lon: number } }[],
+        travelMode: TravelMode
+    ): { row: ExcelRowData; coords: { lat: number; lon: number } }[] {
+        let bestRoute = route.slice();
+        let improved = true;
+
+        while (improved) {
+            improved = false;
+            for (let i = 1; i < bestRoute.length - 2; i++) {
+                for (let j = i + 1; j < bestRoute.length - 1; j++) {
+                    // Invierte el segmento entre i y j
+                    const newRoute = bestRoute
+                        .slice(0, i)
+                        .concat(bestRoute.slice(i, j + 1).reverse())
+                        .concat(bestRoute.slice(j + 1));
+
+                    if (totalDistance(newRoute, travelMode) < totalDistance(bestRoute, travelMode)) {
+                        bestRoute = newRoute;
+                        improved = true;
+                    }
+                }
+            }
+        }
+        return bestRoute;
+    }
+
     // Algoritmo de vecino más cercano para calcular el orden de visita.
     const unvisited = [...valid];
-    const route: { row: ExcelRowData; coords: { lat: number; lon: number } }[] = [];
+    const initialRoute: { row: ExcelRowData; coords: { lat: number; lon: number } }[] = [];
     let current = unvisited.shift()!;
-    route.push(current);
+    initialRoute.push(current);
 
     while (unvisited.length > 0) {
         let nearestIndex = 0;
-        let nearestDistance = haversineDistance(current.coords, unvisited[0].coords);
+        let nearestDistance = haversineDistance(current.coords, unvisited[0].coords, travelMode);
         for (let i = 1; i < unvisited.length; i++) {
-            const d = haversineDistance(current.coords, unvisited[i].coords);
+            const d = haversineDistance(current.coords, unvisited[i].coords, travelMode);
             if (d < nearestDistance) {
                 nearestDistance = d;
                 nearestIndex = i;
             }
         }
         current = unvisited.splice(nearestIndex, 1)[0];
-        route.push(current);
+        initialRoute.push(current);
     }
 
-    // Mapear el recorrido optimizado, asignando el número de orden y la cadena de coordenadas.
-    const optimized: OptimizedExcelRow[] = route.map((item, index) => ({
+    const optimizedRoute = twoOpt(initialRoute, travelMode);
+
+    const optimized: OptimizedExcelRow[] = optimizedRoute.map((item, index) => ({
         ...item.row,
         order: index + 1,
         coordenadas: `${item.coords.lat}, ${item.coords.lon}`,

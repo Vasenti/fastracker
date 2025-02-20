@@ -4,6 +4,7 @@ import React, {useEffect, useState} from "react";
 import {type LatLngExpression} from "leaflet";
 import dynamic from "next/dynamic";
 import {useMap} from "react-leaflet";
+import {TravelMode} from "@/shared/enums";
 
 const MapContainer = dynamic(() => import("react-leaflet").then(mod => mod.MapContainer), { ssr: false });
 const TileLayer = dynamic(() => import("react-leaflet").then(mod => mod.TileLayer), { ssr: false });
@@ -18,6 +19,7 @@ interface MapProps {
     updateMarkerPosition: (index: number, lat: number, lng: number, newDireccion: string) => void;
     isEditing: boolean;
     center: LatLngExpression;
+    travelMode: TravelMode;
 }
 
 const RepositionZoomControl = () => {
@@ -75,7 +77,8 @@ const Map = (
         routePath,
         editableMarkers,
         updateMarkerPosition,
-        isEditing
+        isEditing,
+        travelMode
     }: MapProps
 ) => {
     const [leafletLoaded, setLeafletLoaded] = useState(false);
@@ -96,7 +99,9 @@ const Map = (
             <MapCenterUpdater center={center} />
             <RepositionZoomControl/>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
-            {routePath.length > 0 && <Polyline positions={routePath} color="blue" />}
+            {routePath.length > 0 && <Polyline positions={routePath} color="blue" pathOptions={{
+                dashArray: travelMode === TravelMode.WALKING ? "5, 10" : undefined
+            }}  />}
             {editableMarkers.map((row, index) => (
                 <Marker
                     key={index}

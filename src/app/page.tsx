@@ -120,6 +120,7 @@ const HomePage = () => {
                 editableMarkers={editableMarkers}
                 updateMarkerPosition={updateMarkerPosition}
                 isEditing={isEditing}
+                travelMode={travelMode}
             />
         </div>
     );
