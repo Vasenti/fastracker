@@ -8,7 +8,6 @@ export async function GET(request: Request) {
     const destination = searchParams.get('destination');
     const mode = searchParams.get('mode') as TravelMode;
 
-    // Validar que se reciban los parámetros obligatorios
     if (!origin || !destination || !mode) {
         return NextResponse.json(
             { error: 'Faltan parámetros obligatorios: origin, destination y mode' },
@@ -16,7 +15,6 @@ export async function GET(request: Request) {
         );
     }
 
-    // Obtener la API key de Google desde las variables de entorno
     const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
     if (!GOOGLE_API_KEY) {
         return NextResponse.json(
@@ -25,7 +23,6 @@ export async function GET(request: Request) {
         );
     }
 
-    // Construir la URL para la API de Google Directions
     const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(
         origin
     )}&destination=${encodeURIComponent(destination)}&mode=${mode}&key=${GOOGLE_API_KEY}`;
@@ -41,7 +38,6 @@ export async function GET(request: Request) {
             );
         }
 
-        // Extraer la distancia en metros y convertirla a kilómetros
         const distanceInMeters = data.routes[0].legs[0].distance.value;
         const distanceInKm = distanceInMeters / 1000;
 

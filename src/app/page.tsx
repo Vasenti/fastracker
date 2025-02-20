@@ -36,7 +36,10 @@ const HomePage = () => {
         setIsEditing,
         center,
         setCenter,
-        deleteMarker
+        deleteMarker,
+        reoderMarkersPosition,
+        recalculateRoutes,
+        setRecalculateRoutes
     } = useRouteCalculation();
 
     const [isLoading, setIsLoading] = useState(true);
@@ -113,6 +116,9 @@ const HomePage = () => {
                 removeMarker={deleteMarker}
                 editableMarkers={editableMarkers}
                 setRoutePath={setRoutePath}
+                reorderMarkers={reoderMarkersPosition}
+                recalculateRoutes={recalculateRoutes}
+                setRecalculateRoutes={setRecalculateRoutes}
             />
             <Map
                 center={center}

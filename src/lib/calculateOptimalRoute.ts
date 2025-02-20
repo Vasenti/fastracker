@@ -97,7 +97,7 @@ export async function calculateOptimalRouteLarge(
             coordenadas: '',
         })) as OptimizedExcelRow[];
 
-    async function getRouteDistance(
+    /*async function getRouteDistance(
         coord1: { lat: number; lon: number },
         coord2: { lat: number; lon: number },
         travelMode: TravelMode
@@ -114,7 +114,7 @@ export async function calculateOptimalRouteLarge(
         }
         // En caso de error, se puede devolver un valor muy alto para descartarlo en la optimización.
         return Number.MAX_VALUE;
-    }
+    }*/
     function haversineDistance(
         coord1: { lat: number; lon: number },
         coord2: { lat: number; lon: number },

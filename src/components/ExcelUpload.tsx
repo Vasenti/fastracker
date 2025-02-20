@@ -26,6 +26,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onResult }) => {
             data: row,
             direccion: row['DIRECCION'] || row['Direccion'] || '',
             zona: row['Localidad'] || row['LOCALIDAD'] || '',
+            coordenadas: row['Coordenadas'] || row['COORDENADAS'],
         })).filter(item => item.direccion !== '');
 
         onResult(result);

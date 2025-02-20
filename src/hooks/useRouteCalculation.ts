@@ -3,6 +3,7 @@ import {calculateOptimalRouteLarge, ExcelRowData, OptimizedExcelRow} from "@/lib
 import * as XLSX from "xlsx";
 import {TravelMode} from "@/shared/enums";
 import {LatLngExpression} from "leaflet";
+import {swapElements} from "@/utils/arrayutils";
 
 interface OsmrRouteResponse {
     routes: Array<{
@@ -28,6 +29,7 @@ const useRouteCalculation = () => {
     const [routePath, setRoutePath] = useState<[number, number][]>([]);
     const [editableMarkers, setEditableMarkers] = useState<OptimizedExcelRow[]>([]);
     const [isEditing, setIsEditing] = useState<boolean>(false);
+    const [recalculateRoutes, setRecalculateRoutes] = useState<boolean>(true);
 
     const recalculateRoute  = async (rows: ExcelRowData[], recalculate?: boolean) => {
         if (!startingAddress.trim() || !startingZone.trim()) {
@@ -55,20 +57,48 @@ const useRouteCalculation = () => {
     const fetchRoutePath = async (route: OptimizedExcelRow[]) => {
         if (route.length < 2) return;
 
-        const coordinates = route.map(row => `${row.coordenadas.split(", ")[1]},${row.coordenadas.split(", ")[0]}`).join(";");
-        const profile = travelMode === 'driving' ? 'car' : 'foot';
-        const url = `https://router.project-osrm.org/route/v1/${profile}/${coordinates}?overview=full&geometries=geojson`;
+        if (travelMode === TravelMode.DRIVING){
+            const coordinates = route.map(row => `${row.coordenadas.split(", ")[1]},${row.coordenadas.split(", ")[0]}`).join(";");
+            const profile = travelMode === 'driving' ? 'car' : 'foot';
+            const url = `/api/osrm/route?profile=${profile}&coordinates=${coordinates}`;
 
-        try {
-            const response = await fetch(url);
-            const data: OsmrRouteResponse = await response.json();
-            if (data.routes && data.routes.length > 0) {
-                setRoutePath(data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]));
-                setDistance(data.routes[0].distance / 1000);
-                setDuration(data.routes[0].duration);
+            try {
+                const response = await fetch(url);
+                const data: OsmrRouteResponse = await response.json();
+                if (data.routes && data.routes.length > 0) {
+                    setRoutePath(data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]));
+                    setDistance(data.routes[0].distance / 1000);
+                    setDuration(data.routes[0].duration);
+                }
+            } catch (error) {
+                console.error("Error al obtener la ruta:", error);
             }
-        } catch (error) {
-            console.error("Error al obtener la ruta:", error);
+        }else {
+            const coordinatesArray = route.map(row => {
+                const parts = row.coordenadas.split(", ");
+                return [parseFloat(parts[1]), parseFloat(parts[0])];
+            });
+            try {
+                const response = await fetch('/api/osr/directions/walking', {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ coordinates: coordinatesArray })
+                });
+                const data = await response.json();
+                if (data && data.features && data.features.length > 0) {
+                    setRoutePath(
+                        data.features[0].geometry.coordinates.map((coord: number[]) => [coord[1], coord[0]])
+                    );
+                    if (data.features[0].properties && data.features[0].properties.summary) {
+                        setDistance(data.features[0].properties.summary.distance / 1000); // distancia en km
+                        setDuration(data.features[0].properties.summary.duration); // duración en segundos
+                    }
+                }
+            } catch (error) {
+                console.error("Error al obtener la ruta ORS:", error);
+            }
         }
     };
 
@@ -105,8 +135,24 @@ const useRouteCalculation = () => {
                 Direccion: newDireccion,
             }
         };
-        await recalculateRoute(updatedMarkers, true);
+        await recalculateRoute(updatedMarkers);
     };
+
+    const reoderMarkersPosition = async (
+        sourceIndex: number,
+        destinarionIndex: number
+    ): Promise<void> => {
+        const previousRoutes = [...optimizedRoutes];
+        const newRoutes = swapElements(previousRoutes, sourceIndex, destinarionIndex);
+
+        if (recalculateRoutes){
+            return await recalculateRoute(newRoutes, true);
+        }
+
+        await fetchRoutePath(newRoutes);
+        setOptimizedRoutes(newRoutes);
+        setEditableMarkers(newRoutes);
+    }
 
     const deleteMarker = async (index: number) => {
         const copyRoutes = [...optimizedRoutes];
@@ -138,7 +184,10 @@ const useRouteCalculation = () => {
         setIsEditing,
         center,
         setCenter,
-        deleteMarker
+        deleteMarker,
+        reoderMarkersPosition,
+        recalculateRoutes,
+        setRecalculateRoutes
     };
 };
 export default useRouteCalculation;
