@@ -48,6 +48,17 @@ const MapCenterUpdater = ({ center }: { center: LatLngExpression }) => {
     return null;
 };
 
+const MapInstanceProvider = ({ onMapReady }: { onMapReady: (map: any) => void }) => {
+    const map = useMap();
+    useEffect(() => {
+        if (map) {
+            onMapReady(map);
+        }
+    }, [map, onMapReady]);
+
+    return null;
+};
+
 const createNumberedMarker = (number: number) => {
     return new L.DivIcon({
         className: "custom-marker",
@@ -82,26 +93,65 @@ const Map = (
     }: MapProps
 ) => {
     const [leafletLoaded, setLeafletLoaded] = useState(false);
+    const [map, setMap] = useState<any>(null);
+    const [polylineLayer, setPolylineLayer] = useState<any>(null);
 
     useEffect(() => {
         (async () => {
             if (typeof window !== "undefined") {
                 const leaflet = await import("leaflet");
+                await import("leaflet-arrowheads");
                 L = leaflet;
                 setLeafletLoaded(true);
             }
         })();
     }, []);
 
+    useEffect(() => {
+        if (!map || !L || routePath.length === 0) return;
+
+        // Si ya hay una Polyline, la removemos antes de agregar una nueva
+        if (polylineLayer) {
+            map.removeLayer(polylineLayer);
+        }
+
+        // Crear la línea de ruta con flechas
+        const newPolyline = L.polyline(routePath, {
+            color: travelMode === TravelMode.DRIVING ? "darkorange" : "blue",
+            weight: travelMode === TravelMode.DRIVING ? 6 : 4,
+            dashArray: travelMode === TravelMode.WALKING ? "5,10" : undefined
+        }).addTo(map);
+
+        newPolyline.arrowheads({
+            fill: true,
+            frequency: "100px", // Flechas cada 100px para mayor claridad
+            size: "10px"
+        });
+
+        setPolylineLayer(newPolyline);
+
+        return () => {
+            map.removeLayer(newPolyline);
+        };
+    }, [routePath, travelMode, map]);
+
     if (!leafletLoaded) return <p>Cargando mapa...</p>;
     return (
         <MapContainer center={center} zoom={10} style={{width: "100vw", height: "100vh"}}>
+            <MapInstanceProvider onMapReady={setMap} />
             <MapCenterUpdater center={center} />
             <RepositionZoomControl/>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
-            {routePath.length > 0 && <Polyline positions={routePath} color="blue" pathOptions={{
-                dashArray: travelMode === TravelMode.WALKING ? "5, 10" : undefined
-            }}  />}
+            {routePath.length > 0 && (
+                <Polyline
+                    positions={routePath}
+                    color={travelMode === TravelMode.DRIVING ? "darkorange" : "blue"}
+                    pathOptions={{
+                        dashArray: travelMode === TravelMode.WALKING ? "5, 10" : undefined,
+                        weight: travelMode === TravelMode.DRIVING ? 6 : 4
+                    }}
+                />
+            )}
             {editableMarkers.map((row, index) => (
                 <Marker
                     key={index}
