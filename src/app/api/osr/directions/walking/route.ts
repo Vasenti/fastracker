@@ -23,21 +23,45 @@ export async function POST (
             );
         }
 
-        const orsUrl = 'https://api.openrouteservice.org/v2/directions/foot-walking/geojson';
-        const orsRes = await fetch(orsUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': ORS_API_KEY,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ coordinates })
+        const ORS_URL = 'https://api.openrouteservice.org/v2/directions/foot-walking/geojson';
+        const MAX_COORDINATES = 70;
+
+        const chunkArray = <T>(arr: T[], size: number): T[][] => {
+            const chunks = [];
+            for (let i = 0; i < arr.length; i += size) {
+                chunks.push(arr.slice(i, i + size));
+            }
+            return chunks;
+        };
+
+        const coordinateChunks = chunkArray(coordinates, MAX_COORDINATES);
+        const routePromises = coordinateChunks.map(async (chunk) => {
+            const response = await fetch(ORS_URL, {
+                method: "POST",
+                headers: {
+                    Authorization: ORS_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ coordinates: chunk }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Error al obtener la ruta desde ORS: ${errorText}`);
+            }
+
+            return response.json();
         });
-        if (!orsRes.ok) {
-            const errorText = await orsRes.text();
-            throw new Error(`Error al obtener la ruta desde ORS: ${errorText}`);
-        }
-        const orsData = await orsRes.json();
-        return NextResponse.json(orsData);
+
+        const routes = await Promise.all(routePromises);
+
+        // Unimos las rutas en una sola respuesta
+        const combinedRoute = {
+            type: "FeatureCollection",
+            features: routes.flatMap((route) => route.features),
+        };
+
+        return NextResponse.json(combinedRoute);
     }catch (e: any){
         console.error(e);
         return NextResponse.json({ error: e.message || 'Error interno del servidor' }, { status: 500 });
