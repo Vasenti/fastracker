@@ -117,7 +117,7 @@ const Map = (
 
         // Crear la línea de ruta con flechas
         const newPolyline = L.polyline(routePath, {
-            color: travelMode === TravelMode.DRIVING ? "darkorange" : "blue",
+            color: "blue",
             weight: travelMode === TravelMode.DRIVING ? 6 : 4,
             dashArray: travelMode === TravelMode.WALKING ? "5,10" : undefined
         }).addTo(map);
@@ -145,7 +145,7 @@ const Map = (
             {routePath.length > 0 && (
                 <Polyline
                     positions={routePath}
-                    color={travelMode === TravelMode.DRIVING ? "darkorange" : "blue"}
+                    color="blue"
                     pathOptions={{
                         dashArray: travelMode === TravelMode.WALKING ? "5, 10" : undefined,
                         weight: travelMode === TravelMode.DRIVING ? 6 : 4

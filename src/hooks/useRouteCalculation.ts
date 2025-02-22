@@ -36,6 +36,11 @@ const useRouteCalculation = () => {
             alert("Por favor, ingrese la dirección y zona de partida.");
             return;
         }
+
+        if(rows.length > 450) {
+            alert("Se excedió el límite de direcciones, no puede ser mayor a 450");
+            return;
+        }
         setLoading(true);
         setDistance(null);
         setDuration(null);
@@ -58,12 +63,21 @@ const useRouteCalculation = () => {
         if (route.length < 2) return;
 
         if (travelMode === TravelMode.DRIVING){
-            const coordinates = route.map(row => `${row.coordenadas.split(", ")[1]},${row.coordenadas.split(", ")[0]}`).join(";");
+            const coordinatesArray = route.map(row => {
+                const parts = row.coordenadas.split(", ");
+                return [parseFloat(parts[1]), parseFloat(parts[0])];
+            });
             const profile = travelMode === 'driving' ? 'car' : 'foot';
-            const url = `/api/osrm/route?profile=${profile}&coordinates=${coordinates}`;
 
             try {
-                const response = await fetch(url);
+                const response = await fetch("/api/osrm/route", {
+                    method: "POST", // Se cambia a POST para evitar URL largas
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ coordinates: coordinatesArray, profile }), // Enviamos los datos en el body
+                });
+
                 const data: OsmrRouteResponse = await response.json();
 
                 if (!response.ok) {
@@ -150,7 +164,7 @@ const useRouteCalculation = () => {
                 Direccion: newDireccion,
             }
         };
-        await recalculateRoute(updatedMarkers);
+        await recalculateRoute(updatedMarkers, true);
     };
 
     const reoderMarkersPosition = async (
