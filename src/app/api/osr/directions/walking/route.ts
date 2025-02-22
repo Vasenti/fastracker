@@ -1,48 +1,37 @@
-import {NextRequest, NextResponse} from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST (
-    req: NextRequest
-) {
-    try{
+export async function POST(req: NextRequest) {
+    try {
         const body = await req.json();
-
         const { coordinates } = body;
 
         if (!coordinates || !coordinates.length) {
             return NextResponse.json(
-                { error: "Parámetros invalidos para coordenadas" },
+                { error: "Parámetros inválidos para coordenadas" },
                 { status: 400 }
-            )
+            );
         }
 
         const ORS_API_KEY = process.env.ORS_API_KEY;
         if (!ORS_API_KEY) {
             return NextResponse.json(
-                { error: 'Falta configurar la clave API de ORS.' },
+                { error: "Falta configurar la clave API de ORS." },
                 { status: 500 }
             );
         }
 
-        const ORS_URL = 'https://api.openrouteservice.org/v2/directions/foot-walking/geojson';
+        const ORS_URL = "https://api.openrouteservice.org/v2/directions/foot-walking/geojson";
         const MAX_COORDINATES = 70;
 
-        const chunkArray = <T>(arr: T[], size: number): T[][] => {
-            const chunks = [];
-            for (let i = 0; i < arr.length; i += size) {
-                chunks.push(arr.slice(i, i + size));
-            }
-            return chunks;
-        };
-
-        const coordinateChunks = chunkArray(coordinates, MAX_COORDINATES);
-        const routePromises = coordinateChunks.map(async (chunk) => {
+        const fetchRoute = async (coords: number[][]) => {
+            console.log("coords", coords.length);
             const response = await fetch(ORS_URL, {
                 method: "POST",
                 headers: {
                     Authorization: ORS_API_KEY,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ coordinates: chunk }),
+                body: JSON.stringify({ coordinates: coords }),
             });
 
             if (!response.ok) {
@@ -51,19 +40,28 @@ export async function POST (
             }
 
             return response.json();
-        });
+        };
 
-        const routes = await Promise.all(routePromises);
+        const allRoutes = [];
+        for (let i = 0; i < coordinates.length; i += MAX_COORDINATES - 1) {
+            const chunk = coordinates.slice(i, i + MAX_COORDINATES);
+            if (chunk.length < 2) break; // Se necesita al menos dos coordenadas
 
-        // Unimos las rutas en una sola respuesta
+            const routeData = await fetchRoute(chunk);
+            allRoutes.push(routeData);
+        }
+
         const combinedRoute = {
             type: "FeatureCollection",
-            features: routes.flatMap((route) => route.features),
+            features: allRoutes.flatMap((route) => route.features),
         };
 
         return NextResponse.json(combinedRoute);
-    }catch (e: any){
+    } catch (e: any) {
         console.error(e);
-        return NextResponse.json({ error: e.message || 'Error interno del servidor' }, { status: 500 });
+        return NextResponse.json(
+            { error: e.message || "Error interno del servidor" },
+            { status: 500 }
+        );
     }
 }

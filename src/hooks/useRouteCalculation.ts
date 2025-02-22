@@ -65,13 +65,19 @@ const useRouteCalculation = () => {
             try {
                 const response = await fetch(url);
                 const data: OsmrRouteResponse = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(JSON.stringify(data));
+                }
+
                 if (data.routes && data.routes.length > 0) {
                     setRoutePath(data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]));
                     setDistance(data.routes[0].distance / 1000);
                     setDuration(data.routes[0].duration);
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Error al obtener la ruta:", error);
+                alert(`Ocurrió un error a intentar trazar la ruta: ${error.message}`);
             }
         }else {
             const coordinatesArray = route.map(row => {
@@ -87,17 +93,26 @@ const useRouteCalculation = () => {
                     body: JSON.stringify({ coordinates: coordinatesArray })
                 });
                 const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(JSON.stringify(data));
+                }
+
+
                 if (data && data.features && data.features.length > 0) {
                     setRoutePath(
-                        data.features[0].geometry.coordinates.map((coord: number[]) => [coord[1], coord[0]])
+                        data.features.flatMap((feature: any) =>
+                            feature.geometry.coordinates.map((coord: number[]) => [coord[1], coord[0]])
+                        )
                     );
                     if (data.features[0].properties && data.features[0].properties.summary) {
-                        setDistance(data.features[0].properties.summary.distance / 1000); // distancia en km
-                        setDuration(data.features[0].properties.summary.duration); // duración en segundos
+                        setDistance(data.features[0].properties.summary.distance / 1000);
+                        setDuration(data.features[0].properties.summary.duration);
                     }
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Error al obtener la ruta ORS:", error);
+                alert(`Ocurrió un error a intentar trazar la ruta: ${error.message}`);
             }
         }
     };
